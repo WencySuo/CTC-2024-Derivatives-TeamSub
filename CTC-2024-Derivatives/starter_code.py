@@ -96,28 +96,15 @@ class Strategy:
         return scipy.optimize.minimize_scalar(lambda x: abs(objective(x)),
                                               bounds=(1e-10,10),
                                               method='bounded').x
-    # obj_fn = lambda x: self.black_scholes(S, K, T, r, x, action) - option_price
-    # dfn = lambda sigma: self.vega(S, K, T, r, sigma,action) *100
-    # def objective(sigma):
-    #   return Strategy.black_scholes(S, K, T, r, sigma, action) - option_price
-
-    # try:
-    #     # result = scipy.optimize.newton(func=obj_fn, x0=.8, fprime=dfn, tol=1e-5, maxiter=100)
-    #     result = scipy.optimize.brentq(objective, 1e-10, 10, xtol=1e-15)
-    #     return result
-    # # except RuntimeError as e:
-    # #     return .01
-    # # if brntq fails, try a different method 
-    # except ValueError: 
-    #   return scipy.optimize.minimize_scalar(lambda x: abs(objective(x)),
-    #                                         bounds=(1e-10,10),
-    #                                         method='bounded').x
     
   #rudimentary program that performs newton raphson method of finding roots
   def find_sigma(self, option_price, S, K, T, r, action):
     max_iterations = 200
     precision = 1.0e-5
     
+    # #use closed form approx for sigma to prevent NaN errors
+    # #link https://quant.stackexchange.com/questions/7761/a-simple-formula-for-calculating-implied-volatility?rq=1
+    # #sigma = np.sqrt((option_price * 2 * np.pi)/(T * S))#anything under ~.75 for initial guess will over shoot and return NaN
     sigma = 1
     option_type = 'c' if action == 'C' else 'p'
 
@@ -135,36 +122,8 @@ class Strategy:
         if (abs(diff) < precision):
             return sigma
         sigma = sigma + diff/(vega * 100)
-    return sigma
-  
-    # max_iterations = 200
-    # precision = 1.0e-5
-    
-    # #use closed form approx for sigma to prevent NaN errors
-    # #link https://quant.stackexchange.com/questions/7761/a-simple-formula-for-calculating-implied-volatility?rq=1
-    # #sigma = np.sqrt((option_price * 2 * np.pi)/(T * S))#anything under ~.75 for initial guess will over shoot and return NaN
-    # sigma = 1
-    # for i in range(0, max_iterations):
 
-    #   #note that if options is priced cheaper than 0 volatility sigma will fail and become negative
-    #   # we account for this by checking if sigma is 0 implying we are far from root/nonexistent 
-    #   if sigma < -.1:
-    #     return 0.0001 # just return very small sigma
-      
-    #   price = self.black_scholes(S, K, T, r, sigma, action)
-    #   #print("Option price from sholes is  "+str(price) + " and volatility is " + str(sigma))
-    #   vega = self.vega(S, K, T, r, sigma,action)
-
-    #   #again since vega must always be positive if option is prices lower than therotical cheapest price
-    #   #fix by return vega slightly above 0
-    #   if vega == 0:
-    #     return 0.0001 #small vega implies small sigma (for same reason)
-      
-    #   diff = option_price - price  # our root
-    #   if (abs(diff) < precision):
-    #       return sigma
-    #   sigma = sigma + diff/(vega * 100) # f(x) / f'(x)
-    # return sigma # value wasn't found, return best guess so far
+    return sigma  # value wasn't found, return best guess so far
   
   def getAllGreeks(self, option_price, asset_price, strike_price, time_expire, risk_free_rate, action):
     #print("PARAMETERS FOR FINDING THE GREEKS")
@@ -350,27 +309,6 @@ class Strategy:
         found_order['action'] = new_order['action']
         found_order['order_size'] = new_order['order_size'] - found_order['order_size']
       return open_orders
-      
-      # #add found_order back to list
-      # remaining = open_orders.loc[open_orders['option_symbol'] == found_order['option_symbol']]
-
-      # found_order = self.update_order_info(found_order, spx_price, new_order['datetime'], risk_free_rate=.03)
-
-      # # add index to dictionary
-      # remaining = open_orders.loc[open_orders['option_symbol'] == found_order['option_symbol']]
-
-      # dicts = remaining.to_dict()
-
-      # found_order = found_order.set_index(remaining.index.tolist()[0]).T.to_dict()
-
-
-
-      # #use list comprehension to the dict value
-      # #remaining = {key: dict({remaining.index.tolist()[0],found_order[key]}) for key in found_order}
-      
-      # open_orders.loc[open_orders['option_symbol'] == found_order['option_symbol']] = found_order
-
-    return open_orders
 
   #returns the orders that were sold in order to include draft_order
   def check_update_portfolio(self, draft_order, open_orders, spx_price):
@@ -436,8 +374,6 @@ class Strategy:
     # this checks the summed bounds of the portfolio
     # print("CHECKING PORTFOLIO BOUNDS")
     # print(open_orders)
-
-
 
     for greek in sorted_bounds:
 
@@ -574,202 +510,103 @@ class Strategy:
   #responsible for selling assets to get back within our bounds 
   #reduce_portfolio()
   #check that greeks are within 80 percent of bounds, 
-    
 
   # we want all orders to also include their respective greeks and we will update this every incrementing day?
-
-  # def generate_orders(self) -> pd.DataFrame:
-
-  #   #initialize positions dictionary if not already done 
-  #   if not hasattr(self, 'positions'):
-  #     self.positions = {}
-    
-  #   risk_free_rate = .03 #from case specs
-
-  #   #basic outline looping day by day
-  #   current_date = self.start_date
-  #   delta = timedelta(days=1)
-
-  #   # two seperately managed lists, orders with just pure order information
-  #   # and open_orders which holds the net positions held in our portfolio to reduce unneccessary computation of greeks
-
-  #   orders = pd.DataFrame(columns=['datetime','option_symbol','action','order_size'])
-  #   open_orders = pd.DataFrame(columns=['datetime','option_symbol','action','order_size','sigma', 'delta', 'vega', 'theta','rho','gamma'])
-
-  #   # order statistics 
-  #   total_options_considered = 0 
-  #   total_orders_generated = 0 
-  #   total_portfolio_updates = 0
-    
-  #   while(current_date < self.end_date):
-  #     #debugging print statements 
-  #     print(f"Processing date: {current_date}")
-  #     #get the same day for the spx
-
-  #     spx_day = self.underlying[self.underlying["date"] == current_date.strftime("%Y-%m-%d")]
-      
-  #     #check spx data not empty
-  #     if spx_day.empty: 
-  #       print(f"No SPX data for {current_date}, skipping.")
-  #       current_date += delta
-  #       continue
-    
-  #     #get spx price for day 
-  #     spx_price = spx_day['open'].iloc[0]
-  #     print(f"SPX price for {current_date}: {spx_price}")
-
-  #     if not open_orders.empty:
-  #       open_orders = self.update_portfolio(open_orders, spx_price, current_date.strftime('%Y-%m-%dT%H:%M:%S.%f'), risk_free_rate)
-  #       total_portfolio_updates += 1
-  #       print(f"Updated portfolio. Current open orders: {len(open_orders)}")
-
-  #     day_options = self.options[self.options["day"] == current_date.strftime("%Y-%m-%d")]
-  #     print(f"Number of options to process for {current_date}: {len(day_options)}")
-
-  #     for _, option_order in day_options.iterrows():
-  #       total_options_considered += 1
-
-  #       order_and_price = self.make_order(option_order, spx_price)
-  #       draft_order, price = order_and_price
-
-  #       print(f"Considering order: {draft_order}")
-       
-  #       # Check if we have enough capital and margin
-  #       margin = self.get_margin(draft_order, spx_price, price)
-  #       if margin + transaction_cost > self.capital:
-  #           continue
-        
-  #       # Update position and capital
-  #       self.update_position(draft_order['option_symbol'], draft_order['order_size'], draft_order['action'])
-  #       self.update_capital_value(draft_order, price, spx_price)
-
-  #       # Add to orders
-  #       orders.loc[len(orders)] = draft_order
-  #       transaction_cost = 0.5
-
-  #       if len(open_orders) == 0 and margin + transaction_cost > self.capital:
-  #         print("Insufficient capital for this order, skipping.")
-  #         continue
-
-  #       order_package = self.check_update_portfolio(draft_order, open_orders, spx_price)
-  #       sell_orders, open_orders = order_package
-
-  #       for sell_order in sell_orders.iterrows():
-  #         option = sell_order[1]
-  #         date = datetime.strptime(option['datatime'][:-4], '%Y-%m-%dT%H:%M:%S.%f')
-  #         sell_price = self.get_last_option_price(option['option_symbol'], date)
-  #         self.update_capital_value(option, sell_price, spx_price)
-  #         orders.loc[len(orders)] = option
-  #         total_orders_generated += 1
-  #         print(f"Generated sell order: {option}")
-        
-  #       if open_orders.empty and margin + transaction_cost > self.capital:
-  #         print("insufficient captial after portfolio update, skipping")
-  #         continue
-
-  #       self.update_capital_value(draft_order, price, spx_price)
-  #       orders.loc[len(orders)] = dict(list(draft_order, open_orders, spx_price))
-  #       total_orders_generated += 1
-  #       print(f"Generated buy order: {draft_order}")
-      
-  #     print(f"Finished processing {current_date}. Current capitial: {self.capital}, Portfolio value: {self.portfolio_value}")
-  #     current_date += delta
-
-  #   print(f"Strategy complete. Total options considered: {total_options_considered}")
-  #   print(f"Total orders generated: {total_orders_generated}")
-  #   print(f"Total portfolio updates: {total_portfolio_updates}")
-
-  #   self.orders = orders
-  #   return orders
-  
   def generate_orders(self) -> pd.DataFrame:
-        risk_free_rate = 0.03
-        current_date = self.start_date
-        delta = timedelta(days=1)
+    risk_free_rate = 0.03
+    current_date = self.start_date
+    delta = timedelta(days=1)
 
-        orders = pd.DataFrame(columns=['datetime', 'option_symbol', 'action', 'order_size'])
-        open_orders = pd.DataFrame(columns=['datetime', 'option_symbol', 'action', 'order_size', 'sigma', 'delta', 'vega', 'theta', 'rho', 'gamma'])
+    orders = pd.DataFrame(columns=['datetime', 'option_symbol', 'action', 'order_size'])
+    open_orders = pd.DataFrame(columns=['datetime', 'option_symbol', 'action', 'order_size', 'sigma', 'delta', 'vega', 'theta', 'rho', 'gamma'])
 
-        total_options_considered = 0
-        total_orders_generated = 0
-        total_portfolio_updates = 0
-        transaction_cost = 0.5
+    total_options_considered = 0
+    total_orders_generated = 0
+    total_portfolio_updates = 0
+    transaction_cost = 0.5
 
-        while current_date < self.end_date:
-            print(f"Processing date: {current_date}")
+    while current_date < self.end_date:
+        print(f"Processing date: {current_date}")
+        
+        spx_day = self.underlying[self.underlying["date"] == current_date.strftime("%Y-%m-%d")]
+        
+        if spx_day.empty:
+            print(f"No SPX data for {current_date}, skipping.")
+            current_date += delta
+            continue
+        
+        spx_price = spx_day['open'].iloc[0]
+        print(f"SPX price for {current_date}: {spx_price}")
+
+        if not open_orders.empty:
+            open_orders = self.update_portfolio(open_orders, spx_price, current_date.strftime('%Y-%m-%dT%H:%M:%S.%f'), risk_free_rate)
+            self.update_greek_utilization(open_orders)
+            total_portfolio_updates += 1
+            print(f"Updated portfolio. Current open orders: {len(open_orders)}")
+
+        day_options = self.options[self.options["day"] == current_date.strftime("%Y-%m-%d")]
+        print(f"Number of options to process for {current_date}: {len(day_options)}")
+
+        for _, option_order in day_options.iterrows():
+            total_options_considered += 1
+
+            order_and_price = self.make_order(option_order, spx_price)
+            draft_order, price = order_and_price
+
+            print(f"Considering order: {draft_order}")
             
-            spx_day = self.underlying[self.underlying["date"] == current_date.strftime("%Y-%m-%d")]
-            
-            if spx_day.empty:
-                print(f"No SPX data for {current_date}, skipping.")
-                current_date += delta
+            # Check if we have enough capital and margin
+            margin = self.get_margin(draft_order, spx_price, price)
+
+            # Debug: Print margin and capital information
+            print(f"Margin required: {margin}, Current capital: {self.capital}")
+
+            if margin + transaction_cost > self.capital:
+                print("Insufficient capital for this order, skipping.")
                 continue
             
-            spx_price = spx_day['open'].iloc[0]
-            print(f"SPX price for {current_date}: {spx_price}")
-
-            if not open_orders.empty:
-                open_orders = self.update_portfolio(open_orders, spx_price, current_date.strftime('%Y-%m-%dT%H:%M:%S.%f'), risk_free_rate)
-                self.update_greek_utilization(open_orders)
-                total_portfolio_updates += 1
-                print(f"Updated portfolio. Current open orders: {len(open_orders)}")
-
-            day_options = self.options[self.options["day"] == current_date.strftime("%Y-%m-%d")]
-            print(f"Number of options to process for {current_date}: {len(day_options)}")
-
-            for _, option_order in day_options.iterrows():
-                total_options_considered += 1
-
-                order_and_price = self.make_order(option_order, spx_price)
-                draft_order, price = order_and_price
-
-                print(f"Considering order: {draft_order}")
+            # Check Greeks
+            print("Checking Greek limits...")
+            if not self.check_greek_limits(draft_order, spx_price, risk_free_rate):
+                print("Order exceeds Greek limits, attempting to rebalance portfolio.")
+                sell_orders = self.rebalance_portfolio(draft_order, open_orders, spx_price, risk_free_rate)
                 
-                # Check if we have enough capital and margin
-                margin = self.get_margin(draft_order, spx_price, price)
-
-                if margin + transaction_cost > self.capital:
-                    print("Insufficient capital for this order, skipping.")
-                    continue
+                for sell_order in sell_orders.iterrows():
+                    option = sell_order[1]
+                    date = datetime.strptime(option['datetime'][:-4], '%Y-%m-%dT%H:%M:%S.%f')
+                    sell_price = self.get_last_option_price(option['option_symbol'], date)
+                    self.update_capital_value(option, sell_price, spx_price)
+                    orders = orders.append(option, ignore_index=True)
+                    total_orders_generated += 1
+                    print(f"Generated sell order: {option}")
                 
-                # Check Greeks
                 if not self.check_greek_limits(draft_order, spx_price, risk_free_rate):
-                    print("Order exceeds Greek limits, attempting to rebalance portfolio.")
-                    sell_orders = self.rebalance_portfolio(draft_order, open_orders, spx_price, risk_free_rate)
-                    
-                    for sell_order in sell_orders.iterrows():
-                        option = sell_order[1]
-                        date = datetime.strptime(option['datetime'][:-4], '%Y-%m-%dT%H:%M:%S.%f')
-                        sell_price = self.get_last_option_price(option['option_symbol'], date)
-                        self.update_capital_value(option, sell_price, spx_price)
-                        orders = orders.append(option, ignore_index=True)
-                        total_orders_generated += 1
-                        print(f"Generated sell order: {option}")
-                    
-                    if not self.check_greek_limits(draft_order, spx_price, risk_free_rate):
-                        print("Unable to rebalance portfolio within Greek limits, skipping order.")
-                        continue
+                    print("Unable to rebalance portfolio within Greek limits, skipping order.")
+                    continue
 
-                # Update position and capital
-                self.update_position(draft_order['option_symbol'], draft_order['order_size'], draft_order['action'])
-                self.update_capital_value(draft_order, price, spx_price)
+            # Update position and capital
+            self.update_position(draft_order['option_symbol'], draft_order['order_size'], draft_order['action'])
+            self.update_capital_value(draft_order, price, spx_price)
 
-                # Add to orders
-                orders = orders.append(draft_order, ignore_index=True)
-                open_orders = self.update_open_orders(draft_order, open_orders, spx_price)
-                self.update_greek_utilization(open_orders)
-                total_orders_generated += 1
-                print(f"Generated buy order: {draft_order}")
-            
-            print(f"Finished processing {current_date}. Current capital: {self.capital}, Portfolio value: {self.portfolio_value}")
-            current_date += delta
+            # Add to orders
+            orders = orders.append(draft_order, ignore_index=True)
+            open_orders = self.update_open_orders(draft_order, open_orders, spx_price)
+            self.update_greek_utilization(open_orders)
+            total_orders_generated += 1
+            print(f"Generated buy order: {draft_order}")
 
-        print(f"Strategy complete. Total options considered: {total_options_considered}")
-        print(f"Total orders generated: {total_orders_generated}")
-        print(f"Total portfolio updates: {total_portfolio_updates}")
+            # Debug: Print updated capital and portfolio value
+            print(f"Updated capital: {self.capital}, Updated portfolio value: {self.portfolio_value}")
+        
+        print(f"Finished processing {current_date}. Current capital: {self.capital}, Portfolio value: {self.portfolio_value}")
+        current_date += delta
 
-        self.orders = orders
-        return orders
+    print(f"Strategy complete. Total options considered: {total_options_considered}")
+    print(f"Total orders generated: {total_orders_generated}")
+    print(f"Total portfolio updates: {total_portfolio_updates}")
+
+    self.orders = orders
+    return orders
 
   def check_greek_limits(self, draft_order, spx_price, risk_free_rate):
       symbol_info = self.parse_option_symbol(draft_order['option_symbol'])
@@ -835,99 +672,7 @@ class Strategy:
           self.update_greek_utilization(open_orders)
       
       return sell_orders
-
-
-    ##### BEGIN OLD GENERATE ORDERS FUNCTION ######
-      # #use iloc to get float value
-      # spx_price = next(iter(spx_day['open']), 'no match')
-
-      # if spx_price == 'no match':
-      #   current_date += delta
-      #   continue
-
-      # #update portfolio as sigma will not change throughout the day (freshest info)
-      # open_orders = self.update_portfolio(open_orders, spx_price, current_date.strftime('%Y-%m-%dT%H:%M:%S.%f'), risk_free_rate)
-
-      # #now get all options that were sold that day
-      # day_options = self.options[self.options["day"] == current_date.strftime("%Y-%m-%d")]
-
-      # #start looping through these options acting like real time market 
-      # # 1) will create draft order 2) check addition to portfolio 3) if cant add to portfolio sell assets then add
-
-      # print("Date: " + str(current_date)) #for sanity purposes
-
-      # start_index = day_options.index[0]
-
-      # for index, option_order in day_options.iterrows():
-        
-      #   #print(" PRINTING ALL OPEN ORDERS ") 
-      #   #print(open_orders)
-      #   if index % 1000 == 0: 
-      #     print("Percent done with day %" + str(100* (- start_index + index)/float(len(day_options))))
-
-      #   #print("Working with order " + str(option_order))
-
-      #   order_and_price = self.make_order(option_order, spx_price)
-
-      #   draft_order = order_and_price[0]
-
-      #   if draft_order['option_symbol'] == 'SPX   241220P07000000':
-      #     print("break point here")
-
-      #   price = order_and_price[1]
-
-      #   margin = self.get_margin(draft_order, spx_price, price)
-
-      #   #think one order is one contract
-      #   transaction_cost = 0.5
-
-      #   #if portfolio empty, check if order can be made
-      #   #only scenario where order will not be made
-      #   if len(open_orders.index) == 0 and margin + transaction_cost> self.capital:
-      #     continue
-      #   elif len(open_orders.index) == 0: #when list is empty just add order
-      #     #print("Number of orders " + str(draft_order))
-      #     open_orders = self.update_open_orders(draft_order,open_orders, spx_price)
-      #     self.update_capital_value(draft_order, price, spx_price)
-      #     orders.loc[len(orders)] = dict(list(draft_order.items())[:4])
-      #     continue
-      #   #if options symbol in portfolio is empty and 
-        
-      #   #program will always choose to try to make order and sell portfolio assets as needed
-      #   order_package = self.check_update_portfolio(draft_order, open_orders, spx_price)
-
-
-      #   # do not want to update any values for this stock if list is null
-      #   if len(order_package[1]) == 0:
-      #     continue
-      #   sell_orders = order_package[0]
-      #   open_orders = order_package[1]
-
-      #   #print("These are sell orders " + str(len(sell_orders)))
-
-      #   for i in range(0, len(sell_orders)):
-
-      #     option = sell_orders.iloc[i]
-
-      #     date = option['datetime'][:-4] # issues parsing time zone information without messy errors DO NOT TOUCH
-      #     date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S.%f')
-      #     #need to find the price of selling the stock from our portfolio
-      #     sell_price = self.get_last_option_price(option['option_symbol'], date)
-      #     self.update_capital_value(option, sell_price, spx_price)
-      #     orders.loc[len(orders)] = option
-
-      #   #check case where after cleaning portfolio margin still isnt reached
-      #   if open_orders.empty and margin + transaction_cost> self.capital:
-      #     continue
-
-      #   # passed all condtions add to order and modify portfolio and captial values accordingly 
-      #   self.update_capital_value(draft_order, price, spx_price)
-      #   orders.loc[len(orders)] = dict(list(draft_order.items())[:4])
-      #   open_orders = self.update_open_orders(draft_order,open_orders, spx_price)
-        
-
-      # current_date += delta #increment to next day
-
+  
     #check all incoming orders and calculate weighted mid price and create potential order
 
     #check the greeks of the potential order
