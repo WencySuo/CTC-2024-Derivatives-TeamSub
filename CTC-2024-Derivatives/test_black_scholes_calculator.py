@@ -26,15 +26,15 @@ class TestBlackScholesCalculator(unittest.TestCase):
 
         # Test invalid option type
         with self.assertRaises(ValueError):
-            blackScholes(self.S, self.K, self.r, self.T, self.sigma, "x")
+            blackScholes(self.S, self.K, self.r, self.T, self.sigma, "X")
 
     def test_option_delta(self):
         # Test call option delta
-        call_delta = optionDelta(self.S, self.K, self.r, self.T, self.sigma, "c")
+        call_delta = optionDelta(self.S, self.K, self.r, self.T, self.sigma, "C")
         self.assertAlmostEqual(call_delta, 0.6368, places=4)
 
         # Test put option delta
-        put_delta = optionDelta(self.S, self.K, self.r, self.T, self.sigma, "p")
+        put_delta = optionDelta(self.S, self.K, self.r, self.T, self.sigma, "P")
         self.assertAlmostEqual(put_delta, -0.3632, places=4)
 
         # Test delta sum
@@ -46,11 +46,11 @@ class TestBlackScholesCalculator(unittest.TestCase):
 
     def test_option_theta(self):
         # Test call option theta
-        call_theta = optionTheta(self.S, self.K, self.r, self.T, self.sigma, "c")
+        call_theta = optionTheta(self.S, self.K, self.r, self.T, self.sigma, "C")
         self.assertAlmostEqual(call_theta, -0.0176, places=4)
 
         # Test put option theta
-        put_theta = optionTheta(self.S, self.K, self.r, self.T, self.sigma, "p")
+        put_theta = optionTheta(self.S, self.K, self.r, self.T, self.sigma, "P")
         self.assertAlmostEqual(put_theta, -0.0045, places=4)
 
     def test_option_vega(self):
@@ -59,46 +59,46 @@ class TestBlackScholesCalculator(unittest.TestCase):
 
     def test_option_rho(self):
         # Test call option rho
-        call_rho = optionRho(self.S, self.K, self.r, self.T, self.sigma, "c")
+        call_rho = optionRho(self.S, self.K, self.r, self.T, self.sigma, "C")
         self.assertAlmostEqual(call_rho, 0.5323, places=4)
 
         # Test put option rho
-        put_rho = optionRho(self.S, self.K, self.r, self.T, self.sigma, "p")
+        put_rho = optionRho(self.S, self.K, self.r, self.T, self.sigma, "P")
         self.assertAlmostEqual(put_rho, -0.4189, places=4)
 
     def test_edge_cases(self):
         # Test zero volatility
         with self.assertRaises(ValueError):
-            blackScholes(self.S, self.K, self.r, self.T, 0, "c")
+            blackScholes(self.S, self.K, self.r, self.T, 0, "C")
 
         # Test zero time to expiration
         with self.assertRaises(ValueError):
-            blackScholes(self.S, self.K, self.r, 0, self.sigma, "c")
+            blackScholes(self.S, self.K, self.r, 0, self.sigma, "C")
 
         # Test very large volatility
-        large_vol_call = blackScholes(self.S, self.K, self.r, self.T, 10, "c")
+        large_vol_call = blackScholes(self.S, self.K, self.r, self.T, 10, "C")
         self.assertGreater(large_vol_call, self.S * 0.5)
 
         # Test deep in-the-money call
-        deep_itm_call = blackScholes(self.S, self.K * 0.1, self.r, self.T, self.sigma, "c")
+        deep_itm_call = blackScholes(self.S, self.K * 0.1, self.r, self.T, self.sigma, "C")
         self.assertAlmostEqual(deep_itm_call, self.S - self.K * 0.1 * np.exp(-self.r * self.T), places=2)
 
         # Test deep out-of-the-money put
-        deep_otm_put = blackScholes(self.S, self.K * 10, self.r, self.T, self.sigma, "p")
+        deep_otm_put = blackScholes(self.S, self.K * 10, self.r, self.T, self.sigma, "P")
         self.assertAlmostEqual(deep_otm_put, 0, places=2)
 
         # Additional edge case tests
         # Test deep out-of-the-money call
-        deep_otm_call = blackScholes(self.S, self.K * 10, self.r, self.T, self.sigma, "c")
+        deep_otm_call = blackScholes(self.S, self.K * 10, self.r, self.T, self.sigma, "C")
         self.assertAlmostEqual(deep_otm_call, 0, places=2)
 
         # Test deep in-the-money put
-        deep_itm_put = blackScholes(self.S, self.K * 0.1, self.r, self.T, self.sigma, "p")
+        deep_itm_put = blackScholes(self.S, self.K * 0.1, self.r, self.T, self.sigma, "P")
         self.assertAlmostEqual(deep_itm_put, self.K * 0.1 * np.exp(-self.r * self.T) - self.S, places=2)
 
         # Test at-the-money option
-        atm_call = blackScholes(self.S, self.S, self.r, self.T, self.sigma, "c")
-        atm_put = blackScholes(self.S, self.S, self.r, self.T, self.sigma, "p")
+        atm_call = blackScholes(self.S, self.S, self.r, self.T, self.sigma, "C")
+        atm_put = blackScholes(self.S, self.S, self.r, self.T, self.sigma, "P")
         self.assertAlmostEqual(atm_call - atm_put, 0, places=4)
 
 if __name__ == '__main__':

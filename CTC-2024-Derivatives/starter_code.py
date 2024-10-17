@@ -42,7 +42,7 @@ class Strategy:
     numbers : str = symbol.split(" ")[3]
     date : str = numbers[:6]
     date_yymmdd : str = "20" + date[0:2] + "-" + date[2:4] + "-" + date[4:6]
-    action : str = numbers[6]
+    action : str = numbers[6].upper()
     strike_price : float = float(numbers[7:]) / 1000
     return [datetime.strptime(date_yymmdd, "%Y-%m-%d"), action, strike_price]
   
@@ -85,7 +85,7 @@ class Strategy:
     # return scipy.stats.norm.cdf(x)
     
   def find_sigma_with_scipy(self, option_price, S, K, T, r, action):
-    option_type = 'c' if action == 'C' else 'p'
+    option_type = action
     
     def objective(sigma):
         return blackScholes(S, K, r, T, sigma, option_type) - option_price
