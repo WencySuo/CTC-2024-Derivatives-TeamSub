@@ -13,6 +13,7 @@ import scipy.optimize
 class Strategy:
   
   def __init__(self) -> None:
+    self.positions = {}
     self.capital : float = 100_000_000
     self.portfolio_value : float = 0
 
@@ -107,7 +108,7 @@ class Strategy:
     # #link https://quant.stackexchange.com/questions/7761/a-simple-formula-for-calculating-implied-volatility?rq=1
     # #sigma = np.sqrt((option_price * 2 * np.pi)/(T * S))#anything under ~.75 for initial guess will over shoot and return NaN
     sigma = 1
-    option_type = 'c' if action == 'C' else 'p'
+    option_type = action
 
     for i in range(0, max_iterations):
         if sigma < -.1:
@@ -135,7 +136,7 @@ class Strategy:
 
     #check performance boost with scipy optimize
     sigma = self.find_sigma_with_scipy(option_price, asset_price, strike_price, time_expire, risk_free_rate, action)
-    option_type = 'c' if action == 'C' else 'p'
+    option_type = action
 
     #find all greeks
     delta = optionDelta(asset_price, strike_price, risk_free_rate, time_expire, sigma, option_type)
@@ -598,7 +599,7 @@ class Strategy:
                     date = datetime.strptime(option['datetime'][:-4], '%Y-%m-%dT%H:%M:%S.%f')
                     sell_price = self.get_last_option_price(option['option_symbol'], date)
                     self.update_capital_value(option, sell_price, spx_price)
-                    orders = orders.append(option, ignore_index=True)
+                    orders = pd.concat([orders, pd.DataFrame([draft_order])], ignore_index=True)
                     total_orders_generated += 1
                     print(f"Generated sell order: {option}")
                 
@@ -611,7 +612,7 @@ class Strategy:
             self.update_capital_value(draft_order, price, spx_price)
 
             # Add to orders
-            orders = orders.append(draft_order, ignore_index=True)
+            orders = pd.concat([orders, pd.DataFrame([draft_order])], ignore_index=True)
             open_orders = self.update_open_orders(draft_order, open_orders, spx_price)
             self.update_greek_utilization(open_orders)
             total_orders_generated += 1
@@ -685,7 +686,7 @@ class Strategy:
           # Sell the order that contributes most to the Greek we're trying to reduce
           sell_order = max_order.copy()
           sell_order['action'] = 'S' if sell_order['action'] == 'B' else 'B'
-          sell_orders = sell_orders.append(sell_order, ignore_index=True)
+          sell_orders = pd.concat([sell_orders, pd.DataFrame([sell_order])], ignore_index=True)
           
           # Remove the sold order from open_orders
           open_orders = open_orders[open_orders.index != max_order.name]
