@@ -589,9 +589,9 @@ class Strategy:
             
             # Check Greeks
             print("Checking Greek limits...")
-            if not self.check_greek_limits(draft_order, spx_price, risk_free_rate):
+            if not self.check_greek_limits(draft_order, spx_price, risk_free_rate, current_date):
                 print("Order exceeds Greek limits, attempting to rebalance portfolio.")
-                sell_orders = self.rebalance_portfolio(draft_order, open_orders, spx_price, risk_free_rate)
+                sell_orders = self.rebalance_portfolio(draft_order, open_orders, spx_price, risk_free_rate, current_date)
                 
                 for sell_order in sell_orders.iterrows():
                     option = sell_order[1]
@@ -602,7 +602,7 @@ class Strategy:
                     total_orders_generated += 1
                     print(f"Generated sell order: {option}")
                 
-                if not self.check_greek_limits(draft_order, spx_price, risk_free_rate):
+                if not self.check_greek_limits(draft_order, spx_price, risk_free_rate, current_date):
                     print("Unable to rebalance portfolio within Greek limits, skipping order.")
                     continue
 
@@ -630,12 +630,12 @@ class Strategy:
     self.orders = orders
     return orders
 
-  def check_greek_limits(self, draft_order, spx_price, risk_free_rate):
+  def check_greek_limits(self, draft_order, spx_price, risk_free_rate, current_date):
       symbol_info = self.parse_option_symbol(draft_order['option_symbol'])
       strike_price = symbol_info[2]
       action = symbol_info[1]
       expiry_date = symbol_info[0]
-      time_to_expiry = (expiry_date - datetime.now()).days / 365
+      time_to_expiry = max(0, (expiry_date - current_date).days / 365)
 
       option_price = self.get_last_option_price(draft_order['option_symbol'], datetime.now())
       if option_price == -64:
@@ -662,10 +662,10 @@ class Strategy:
           for greek in self.greek_bounds:
               self.greek_utilization[greek] += order[greek] * order['order_size']
 
-  def rebalance_portfolio(self, draft_order, open_orders, spx_price, risk_free_rate):
+  def rebalance_portfolio(self, draft_order, open_orders, spx_price, risk_free_rate, current_date):
       sell_orders = pd.DataFrame(columns=open_orders.columns)
       
-      while not self.check_greek_limits(draft_order, spx_price, risk_free_rate) and not open_orders.empty:
+      while not self.check_greek_limits(draft_order, spx_price, risk_free_rate, current_date) and not open_orders.empty:
           # Find the order that contributes most to the Greek we're trying to reduce
           max_contribution = 0
           max_greek = ''
